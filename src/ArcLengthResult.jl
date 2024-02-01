@@ -1,4 +1,4 @@
-mutable struct ArcLengthResult
+mutable struct ArcLengthResult <: AbstractSolverResult
   d::Array{Float64}  # maxsteps×dim
   dₙᵏ::Array{Float64,3} # maxsteps×maxits×dim
   λ::Array{Float64,1}  # maxsteps×maxits

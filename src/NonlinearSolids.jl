@@ -2,7 +2,10 @@ module NonlinearSolids
 using LinearAlgebra
 using Revise
 
-export newtonraphson, modifiednewton, newtonarclength, NewtonResult, ArcLengthResult, trim!
+export newtonraphson, modifiednewton, newtonarclength, NewtonResult, ArcLengthResult, AbstractSolverResult, trim!
+
+# Abstract types
+abstract type AbstractSolverResult end
 
 # Utility functions
 include("utils.jl")

@@ -1,7 +1,5 @@
 using LinearAlgebra
 
-include("NewtonResult.jl")
-
 function newton(Fint, ∂Fint, dim=1; type=:standard, Fext=8, ΔFext=Fext / 32, rtol=1e-16, stol=1e-16, maxits=100, dtol=1e6)
   if !(type in (:standard, :modified))
     error("type must be :standard or :modified")
@@ -67,9 +65,9 @@ function newton(Fint, ∂Fint, dim=1; type=:standard, Fext=8, ΔFext=Fext / 32, 
 end
 
 function newtonraphson(args...; kwargs...)
-  return newtonraphson(args...; type=:standard, kwargs...)
+  return newton(args...; type=:standard, kwargs...)
 end
 
 function modifiednewton(args...; kwargs...)
-  return newtonraphson(args...; type=:modified, kwargs...)
+  return newton(args...; type=:modified, kwargs...)
 end

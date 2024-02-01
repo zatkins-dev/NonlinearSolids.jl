@@ -1,4 +1,4 @@
-mutable struct NewtonResult
+mutable struct NewtonResult <: AbstractSolverResult
   d::Array{Float64}  # maxsteps×dim
   dₙᵏ::Array{Float64,3} # maxsteps×maxits×dim
   res_d::Array{Float64,2} # maxsteps×maxits
