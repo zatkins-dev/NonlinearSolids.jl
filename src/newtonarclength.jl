@@ -19,7 +19,7 @@ function newtonarclength(Fint, ∂Fint, dim=1; stop=nothing, b=0.5, Δa=0.1, Fex
   options = Dict(kwargs...)
   rtol = pop!(options, :rtol, 1e-16)
   ftol = pop!(options, :ftol, 1e-16)
-  stol = pop!(options, :ftol, 0)
+  stol = pop!(options, :stol, 0)
   maxsteps = pop!(options, :maxsteps, 20)
   maxits = pop!(options, :maxits, 100)
   for (key, _) in options

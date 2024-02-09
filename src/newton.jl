@@ -7,8 +7,8 @@ function newton(Fint, ∂Fint, dim=1; type=:standard, Fext=8, ΔFext=Fext / 32, 
   # Read arguments
   options = Dict(kwargs...)
   rtol = pop!(options, :rtol, 1e-16)
-  stol = pop!(options, :ftol, 1e-16)
-  dtol = pop!(options, :ftol, 1e6)
+  stol = pop!(options, :stol, 1e-16)
+  dtol = pop!(options, :dtol, 1e6)
   maxits = pop!(options, :maxits, 100)
   for (key, _) in options
     printstyled("warning: unknown option '$key'")
