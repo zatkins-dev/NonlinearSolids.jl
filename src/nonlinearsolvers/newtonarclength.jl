@@ -1,5 +1,7 @@
 using LinearAlgebra
 
+export newtonarclength
+
 function make_f_arc(K̃, d̃; b=0.5)
   den = d̃ ⋅ diagm(K̃) ⋅ d̃
   return (Δd, Δλ) -> √((1 - b) * (Δd ⋅ diagm(K̃) ⋅ Δd) / den + b * Δλ^2)

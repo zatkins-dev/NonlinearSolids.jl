@@ -2,7 +2,7 @@ module NonlinearSolids
 using LinearAlgebra
 using Revise
 
-export newtonraphson, modifiednewton, newtonarclength, NewtonResult, ArcLengthResult, AbstractSolverResult, trim!
+export AbstractSolverResult
 
 # Abstract types
 abstract type AbstractSolverResult end
@@ -11,11 +11,17 @@ abstract type AbstractSolverResult end
 include("utils.jl")
 
 # Results
-include("NewtonResult.jl")
-include("ArcLengthResult.jl")
+include("nonlinearsolvers/newtonresults.jl")
+include("nonlinearsolvers/arclengthresults.jl")
+
+# FEM
+include("fem/element.jl")
+include("fem/quadrature.jl")
+include("fem/shapefunctions.jl")
+include("fem/boundary.jl")
+include("fem/fem.jl")
 
 # Nonlinear Solvers
-include("newton.jl")
-include("newtonarclength.jl")
-
+include("nonlinearsolvers/newton.jl")
+include("nonlinearsolvers/newtonarclength.jl")
 end
