@@ -16,7 +16,7 @@ mutable struct FEMModel
   constrained_nodes::BitVector
   postprocess::Vector{Function}
   function FEMModel(mesh::Mesh, q, p; data=Dict())
-    Q = gauss_quadrature(Val(q))
+    Q = gauss_quadrature(q)
     P = lagrange(p, :chebyshev2)
     boundaries_el = [AbstractElementBoundary[] for _ in elements(mesh)]
     constrained_nodes = falses(length(nodes(mesh)))

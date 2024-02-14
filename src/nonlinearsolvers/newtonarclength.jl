@@ -29,7 +29,7 @@ function newtonarclength(Fint, ∂Fint, dim=1; stop=nothing, b=0.5, Δa=0.1, Fex
   end
 
   # Initialize result
-  res = ArcLengthResult(dim; maxsteps, maxits)
+  res = ArcLengthResult(dim; maxsteps=maxsteps, maxits=maxits)
   Fext = ensurevec(Fext) # Make Fext a vector
   K̃₀ = ∂Fint(res.d[1, :]) # Initial tangent
   d̃₀ = ensurevec(K̃₀ \ Fext)  # Initial displacement increment
