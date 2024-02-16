@@ -8,13 +8,21 @@ function newton(Fint, ∂Fint, dim=1; type=:standard, Fext=8, ΔFext=Fext / 32, 
   end
   # Read arguments
   options = Dict(kwargs...)
-  rtol = pop!(options, :rtol, 1e-16)
-  stol = pop!(options, :stol, 1e-16)
+  rtol = pop!(options, :rtol, 1e-6)
+  stol = pop!(options, :stol, 1e-12)
+  atol = pop!(options, :atol, 1e-12)
   dtol = pop!(options, :dtol, 1e6)
   maxits = pop!(options, :maxits, 100)
   for (key, _) in options
-    printstyled("warning: unknown option '$key'")
+    @warn "warning: unknown option '$key'"
   end
+  @info """
+Running $(type) Newton-Raphson with options:
+  atol: $atol
+  rtol: $rtol
+  dtol: $dtol
+  maxits: $maxits
+"""
 
   # Initialize result
   num_steps = Int(Fext ÷ ΔFext)
@@ -23,7 +31,7 @@ function newton(Fint, ∂Fint, dim=1; type=:standard, Fext=8, ΔFext=Fext / 32, 
 
   # Iterate over steps
   for n in 1:num_steps
-    println("\nn = $n")
+    @debug format("time step n = {} (t = {:0.2g})", n, gettime(fem))
     if n > 1
       res.dₙᵏ[n, 1, :] = res.d[n-1, :]
     end
@@ -34,10 +42,12 @@ function newton(Fint, ∂Fint, dim=1; type=:standard, Fext=8, ΔFext=Fext / 32, 
     δd⁰ = 0
     k = 1 # Initial iteration count
     # Iterate until residual is small enough
-    reason = "diverged: maxits"
     while k < maxits
-      if res.res_d[n, k] < rtol
-        reason = "converged: rtol"
+      if res.res_d[n, k] / norm_r0 < rtol
+        @debug "  converged: rtol in $k iterations"
+        break
+      elseif res.res_d[n, k] < atol
+        @debug "  converged: atol in $k iterations"
         break
       end
       # Compute tangent
@@ -50,23 +60,25 @@ function newton(Fint, ∂Fint, dim=1; type=:standard, Fext=8, ΔFext=Fext / 32, 
         δd⁰ = δdᵏ
       end
       if norm(δdᵏ) > dtol
-        reason = "diverged: dtol"
-        printstyled("error: diverged solve at time step $n\n", color=:red)
+        @error "  diverged Newton step at step n=$n, k=$k"
         trim!(res, n - 1)
         return res
       elseif norm(δdᵏ) / norm(δd⁰) < stol
-        reason = "converged: stol"
+        @debug "  converged: stol in $k iterations"
         break
       end
       # Update displacement
       res.dₙᵏ[n, k+1, :] = res.dₙᵏ[n, k, :] + δdᵏ
       # Compute residual
       r = Fextₙ[n] - Fint(res.dₙᵏ[n, k+1, :])
-      res.res_d[n, k+1] = norm(r) / norm_r0
+      res.res_d[n, k+1] = norm(r)
       # Update iteration count
       k += 1
     end
-    println("time step $n: $reason in $k iterations")
+    if k >= maxits
+      @warn "  diverged max its ($k iterations)"
+    end
+    @debug "  final errors:" relative = res.res_d[n, k] / norm_r0 absolute = res.res_d[n, k]
     # Store number of iterations and converged solution
     res.num_its[n] = k
     res.d[n, :] = res.dₙᵏ[n, k, :]

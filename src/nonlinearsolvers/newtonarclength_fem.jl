@@ -7,45 +7,48 @@ function newtonarclength(fem::FEMModel, Fint::Function, ∂Fint∂d::Function, F
   maxsteps = pop!(options, :maxsteps, 20)
   maxits = pop!(options, :maxits, 100)
   for (key, _) in options
-    printstyled("warning: unknown option '$key'")
+    @warn "unknown option '$key'"
   end
-
-  println("Running Newton-Raphson Arc Length with options:")
-  println("  Δa: $Δa")
-  println("  b: $b")
-  println("  rtol: $rtol")
-  println("  ftol: $ftol")
-  println("  stol: $stol")
-  println("  maxsteps: $maxsteps")
-  println("  maxits: $maxits")
-  println(fem)
+  @info """
+Running Newton-Raphson Arc Length with options:
+  Δa: $Δa
+  b: $b
+  rtol: $rtol
+  ftol: $ftol
+  stol: $stol
+  maxsteps: $maxsteps
+  maxits: $maxits
+""" fem
 
   # Initialize result and vectors
-  res = ArcLengthFEMResult(fem; maxsteps=maxsteps, maxits=maxits)
-  K̃₀ = zeros(numdof(fem), numdof(fem)) # Reference consistent displacement tangent
-  Kd = zeros(numdof(fem), numdof(fem)) # Current consistent displacement tangent
-  d = reshape(res.d[1, :], :) # Flattened view of displacement vector
-  Δd = zeros(length(dofs(fem, d))) # Displacement step
+  res = ArcLengthResult(fem; maxsteps=maxsteps, maxits=maxits)
+  d = @view res.d[1, :] # Current Displacement
+  numgdofs = length(d) # Number of global DoFs, dim * numdof(fem)
+  numrealdofs = length(dofs(fem, d)) # Number of unconstrained gdofs
+  K̃₀ = zeros(numgdofs, numgdofs) # Reference consistent displacement tangent
+  Kd = zeros(numgdofs, numgdofs) # Current consistent displacement tangent
+  Δd = zeros(numrealdofs) # Displacement step
   Δλ = 0 # Load step
-  δ = zeros(length(dofs(fem, d)) + 1) # Incremental displacement and load factor
-  r = zeros(length(dofs(fem, d)) + 1) # Residual (excluding constrained DoFs)
-  F_ext = zeros(length(d)) # External force vector
-  F_int = zeros(length(d)) # Internal force vector
+  δ = zeros(numrealdofs + 1) # Incremental displacement and load factor
+  r = zeros(numrealdofs + 1) # Residual (excluding constrained DoFs)
+  F_ext = zeros(numgdofs) # External force vector
+  F_int = zeros(numgdofs) # Internal force vector
 
   # Compute initial values
   ∂Fint∂d(fem, d, K̃₀) # Initial tangent
   Fext(fem, F_ext) # External force
   d̃₀ = dofs(fem, K̃₀) \ dofs(fem, F_ext) # Initial displacement increment
-  f_arc = make_f_arc(dofs(fem, K̃₀), d̃₀; b=b) # Arc length function
-  df_arc = make_df_arc(dofs(fem, K̃₀), d̃₀; b=b) # Arc length derivative
+  f_arc = ArcLength(dofs(fem, K̃₀), d̃₀; b=b) # Arc length function
+  df_arc = ∇(f_arc) # Arc length derivative
   detKlast = det(dofs(fem, K̃₀)) # Previous det(K̃ₙ) for initialization stage 1
   signΔλlast = 1 # Previous sign of Δλ for initialization stage 1
 
   # Iterate over steps
   for n in 1:maxsteps-1
-    println("\nn = $(n+1)")
+    updateboundaries!(fem)
+    @debug format("time step n = {} (t = {:0.2g})", n + 1, gettime(fem))
     # Initialization for arc length procedure within time step
-    d = reshape(res.d[n, :], :)
+    d = @view res.d[n, :] # Current displacement
     if n < 3 # procedure 1 for first three steps
       ∂Fint∂d(fem, d, Kd)
       d̃ₙ = dofs(fem, Kd) \ dofs(fem, F_ext)
@@ -62,18 +65,18 @@ function newtonarclength(fem::FEMModel, Fint::Function, ∂Fint∂d::Function, F
       detKlast = detKn
       # update steps
       Δd .= Δλ * d̃ₙ
-      res.dₙᵏ[n+1, 1, :, :] .= d + expand(fem, Δd)
+      res.dₙᵏ[n+1, 1, :] .= d + expand(fem, Δd)
       res.λₙᵏ[n+1, 1] = res.λ[n] + Δλ
     else # procedure 2, Lagrange polynomials
       coefs = vec([1 -3 3])
       res.λₙᵏ[n+1, 1] = coefs ⋅ res.λ[n-2:n]
-      res.dₙᵏ[n+1, 1, :, :] = coefs' * reshape(res.d[n-2:n, :, :], length(coefs), :)
+      res.dₙᵏ[n+1, 1, :] = coefs' * res.d[n-2:n, :]
       Δλ = res.λₙᵏ[n+1, 1] - res.λ[n]
-      Δd .= dofs(fem, reshape(res.dₙᵏ[n+1, 1, :, :] - res.d[n, :, :], :))
+      Δd .= dofs(fem, res.dₙᵏ[n+1, 1, :] - res.d[n, :])
     end
 
     # Get flattened view
-    d = reshape(res.dₙᵏ[n+1, 1, :, :], :)
+    d = @view res.dₙᵏ[n+1, 1, :]
     applydirichletboundaries!(fem, d)
     # Compute initial monolithic residual
     Fint(fem, d, F_int)
@@ -85,7 +88,6 @@ function newtonarclength(fem::FEMModel, Fint::Function, ∂Fint∂d::Function, F
     if norm_r0 < eps(Float64)
       norm_r0 = 1
     end
-    println("  norm(r⁰) = $norm_r0")
     res.res_d[n+1, 1] = norm_r0
     res.res_λ[n+1, 1] = r[end]
     k = 1 # Initial iteration count
@@ -93,7 +95,7 @@ function newtonarclength(fem::FEMModel, Fint::Function, ∂Fint∂d::Function, F
     while k < maxits
       # Compute residual
       if res.res_d[n+1, k] < rtol * norm_r0 && res.res_λ[n+1, k] / Δa < ftol
-        printstyled("  converged: rtol and ftol in $k iterations\n", color=:green)
+        @debug "  converged: rtol and ftol in $k iterations"
         break
       end
       # Compute tangent
@@ -104,7 +106,7 @@ function newtonarclength(fem::FEMModel, Fint::Function, ∂Fint∂d::Function, F
         δ = Kᵏ \ r
       catch e
         if e isa SingularException
-          printstyled("  error: diverged linear solve\n", color=:red)
+          @error "  error: diverged linear solve at step n=$(n+1), k=$k"
           trim!(res)
           return res
         else
@@ -112,7 +114,7 @@ function newtonarclength(fem::FEMModel, Fint::Function, ∂Fint∂d::Function, F
         end
       end
       if norm(δ[1:end-1]) < stol && abs(δ[end]) < stol
-        printstyled("  converged: stol in $k iterations\n", color=:green)
+        @debug "  converged: stol in $k iterations"
         break
       end
       # Update displacement and load steps
@@ -120,7 +122,7 @@ function newtonarclength(fem::FEMModel, Fint::Function, ∂Fint∂d::Function, F
       Δd += δ[1:end-1]
       res.λₙᵏ[n+1, k+1], Δλ = [res.λₙᵏ[n+1, k], Δλ] .+ δ[end]
       # Apply Dirichlet BCs
-      d = reshape(res.dₙᵏ[n+1, k+1, :, :], :)
+      d = @view res.dₙᵏ[n+1, k+1, :]
       applydirichletboundaries!(fem, d)
       # Compute monolithic residual
       Fint(fem, d, F_int)
@@ -134,11 +136,13 @@ function newtonarclength(fem::FEMModel, Fint::Function, ∂Fint∂d::Function, F
       k += 1
     end
     if k >= maxits
-      printstyled("  warning: diverged max its ($k iterations)\n", color=:yellow)
+      @warn "  diverged max its ($k iterations)"
     end
-    println("  final relative errors:")
-    printfmtln("    ||rₙ - r⁰ₙ|| / ||r⁰ₙ|| = {:0.3g}", res.res_d[n, k] / norm_r0)
-    printfmtln("    (Δa - f(λ))  /   Δa    = {:0.3g}", res.res_λ[n+1, k] / Δa)
+    @debug format("""
+  final relative errors:
+    ||rₙ - r⁰ₙ|| / ||r⁰ₙ|| = {:0.3g}
+    (Δa - f(λ))  /   Δa    = {:0.3g}
+""", res.res_d[n+1, k] / norm_r0, res.res_λ[n+1, k] / Δa)
 
     # Store number of iterations and converged solution
     res.num_its[n+1] = k
@@ -148,11 +152,11 @@ function newtonarclength(fem::FEMModel, Fint::Function, ∂Fint∂d::Function, F
 
     # Apply any postprocessing functions
     step!(fem, Δλ)
-    postprocess!(fem, reshape(res.d[n, :, :], :), res)
+    postprocess!(fem, d, res)
 
     # Check stopping criterion
     if !isnothing(stop) && stop(res.d[n+1, :], res.λ[n+1])
-      println("Stopping criterion met at step $n, stopping")
+      @debug "Stopping criterion met at step $(n+1), stopping"
       break
     end
   end

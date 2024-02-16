@@ -10,54 +10,54 @@ function newton(fem::FEMModel, residual, dresidual; type=:standard, t0=0.0, max_
   dtol = pop!(options, :dtol, 1e6)
   maxits = pop!(options, :maxits, 100)
   for (key, _) in options
-    printstyled("warning: unknown option '$key'")
+    @warn "unknown option '$key'"
   end
-  println("Running $(type) Newton-Raphson with options:")
-  println("  atol: $atol")
-  println("  rtol: $rtol")
-  println("  dtol: $dtol")
-  println("  maxits: $maxits")
-  println(fem)
+  @info """
+Running $(type) Newton-Raphson with options:
+  atol: $atol
+  rtol: $rtol
+  dtol: $dtol
+  maxits: $maxits
+""" fem
 
   # Initialize result
   num_steps = Int((max_time - t0) / dt) + 1
   fem.time = t0
-  res = NewtonFEMResult(numdof(fem), dim(fem); num_steps=num_steps, maxits=maxits)
+  res = NewtonResult(fem; numsteps=num_steps, maxits=maxits)
   R = zeros(numdof(fem))
   K = zeros(numdof(fem), numdof(fem))
 
   for n in 1:num_steps
     updateboundaries!(fem)
-    printfmtln("time step n = {} (t = {:0.2g})", n, gettime(fem))
+    @debug format("time step n = {} (t = {:0.2g})", n, gettime(fem))
     if n > 1
-      res.dₙᵏ[n, 1, :, :] = res.d[n-1, :, :]
+      res.dₙᵏ[n, 1, :] = res.d[n-1, :]
     end
-    d = reshape(res.dₙᵏ[n, 1, :, :], :)
-    applydirichletboundaries!(fem, d)
-    residual(fem, d, R)
-    dresidual(fem, d, K)
+    applydirichletboundaries!(fem, res.dₙᵏ[n, 1, :])
+    residual(fem, res.dₙᵏ[n, 1, :], R)
+    dresidual(fem, res.dₙᵏ[n, 1, :], K)
     r = dofs(fem, R)
     res.res_d[n, 1] = norm(r)
     norm_r0 = norm(r) > eps() ? norm(r) : 1
-    δd = zeros(size(dofs(fem, d)))
+    δd = zeros(size(dofs(fem, R)))
     k = 1 # Initial iteration count
     while k < maxits
       if res.res_d[n, k] / norm_r0 < rtol
-        printstyled("  converged: rtol in $k iterations\n", color=:green)
+        @debug "  converged: rtol in $k iterations"
         break
       end
       if res.res_d[n, k] < atol
-        printstyled("  converged: atol in $k iterations\n", color=:green)
+        @debug "  converged: atol in $k iterations"
         break
       end
       if type == :standard
-        dresidual(fem, d, K)
+        dresidual(fem, res.dₙᵏ[n, k, :], K)
       end
       try
         δd = -dofs(fem, K) \ dofs(fem, R)
       catch e
         if e isa SingularException
-          printstyled("  error: diverged linear solve\n", color=:red)
+          @error "  diverged linear solve at step n=$n, k=$k"
           trim!(res, n - 1)
           return res
         else
@@ -65,28 +65,25 @@ function newton(fem::FEMModel, residual, dresidual; type=:standard, t0=0.0, max_
         end
       end
       if norm(δd) > dtol
-        printstyled("  error: diverged Newton step\n", color=:red)
+        @error "  diverged Newton step at step n=$n, k=$k"
         trim!(res, n - 1)
         return res
       end
-      dnew = d + expand(fem, δd)
-      applydirichletboundaries!(fem, dnew)
-      res.dₙᵏ[n, k+1, :, :] .= dnew
-      d = reshape(res.dₙᵏ[n, k+1, :, :], :)
-      residual(fem, d, R)
+      res.dₙᵏ[n, k+1, :] = res.dₙᵏ[n, k, :] + expand(fem, δd)
+      applydirichletboundaries!(fem, res.dₙᵏ[n, k+1, :])
+      residual(fem, res.dₙᵏ[n, k+1, :], R)
       res.res_d[n, k+1] = norm(dofs(fem, R))
       k += 1
     end
     if k >= maxits
-      printstyled("  warning: diverged max its ($k iterations)\n", color=:yellow)
+      @warn "  diverged max its ($k iterations)"
     end
-    println("  final errors:")
-    printfmtln("    rel: {:0.3g}; abs: {:0.3g}\n", res.res_d[n, k] / norm_r0, res.res_d[n, k])
+    @debug "  final errors:" relative = res.res_d[n, k] / norm_r0 absolute = res.res_d[n, k]
     res.num_its[n] = k
-    res.d[n, :, :] = res.dₙᵏ[n, k, :, :]
+    res.d[n, :] = res.dₙᵏ[n, k, :]
 
     # Apply any post processing functions
-    postprocess!(fem, reshape(res.d[n, :, :], :), res)
+    postprocess!(fem, res.d[n, :], res)
     if n < num_steps
       step!(fem, dt)
     end

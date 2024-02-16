@@ -48,8 +48,18 @@ function newtonarclength(Fint::Function, ∂Fint::Function, dim::Int=1; stop=not
   maxsteps = pop!(options, :maxsteps, 20)
   maxits = pop!(options, :maxits, 100)
   for (key, _) in options
-    printstyled("warning: unknown option '$key'")
+    @warn "unknown option '$key'"
   end
+  @info """
+  Running Newton-Raphson Arc Length with options:
+    Δa: $Δa
+    b: $b
+    rtol: $rtol
+    ftol: $ftol
+    stol: $stol
+    maxsteps: $maxsteps
+    maxits: $maxits
+  """
 
   # Initialize result
   res = ArcLengthResult(dim; maxsteps=maxsteps, maxits=maxits)
@@ -60,7 +70,7 @@ function newtonarclength(Fint::Function, ∂Fint::Function, dim::Int=1; stop=not
 
   # Iterate over steps
   for n in 1:maxsteps+1
-    println("\nn = $n")
+    @debug format("time step n = {} (t = {:0.2g})", n + 1, gettime(fem))
     # initialization for arc length procedure within time step
     if n < 3 # procedure 1 for first three steps
       d̃ₙ = ensurevec(∂Fint(res.d[n, :]) \ Fext)
@@ -85,16 +95,14 @@ function newtonarclength(Fint::Function, ∂Fint::Function, dim::Int=1; stop=not
     if norm_r0 < eps(Float64)
       norm_r0 = 1
     end
-    println("norm(r⁰) = $norm_r0")
     res.res_d[n+1, 1] = norm_r0
     res.res_λ[n+1, 1] = r[end]
     k = 1 # Initial iteration count
     # Iterate until residual is small enough
-    reason = "diverged: maxits"
     while k < maxits
       # Compute residual
       if res.res_d[n+1, k] < rtol * norm_r0 && res.res_λ[n+1, k] / Δa < ftol
-        reason = "converged: rtol and ftol"
+        @debug "  converged: rtol and ftol in $k iterations"
         break
       end
       # Compute tangent
@@ -102,7 +110,7 @@ function newtonarclength(Fint::Function, ∂Fint::Function, dim::Int=1; stop=not
       # Compute displacement increment
       δ = Kᵏ \ vec(r)
       if norm(δ[1:end-1]) < stol && abs(δ[end]) < stol
-        reason = "converged: stol"
+        @debug "  converged: stol in $k iterations"
         break
       end
       # Update displacement and load steps
@@ -118,7 +126,14 @@ function newtonarclength(Fint::Function, ∂Fint::Function, dim::Int=1; stop=not
       # Update iteration count
       k += 1
     end
-    println("time step $n: $reason in $k iterations")
+    if k >= maxits
+      @warn "  diverged max its ($k iterations)"
+    end
+    @info format("""
+  final relative errors:
+    ||rₙ - r⁰ₙ|| / ||r⁰ₙ|| = {:0.3g}
+    (Δa - f(λ))  /   Δa    = {:0.3g}
+""", res.res_d[n+1, k] / norm_r0, res.res_λ[n+1, k] / Δa)
     # Store number of iterations and converged solution
     res.num_its[n+1] = k
     res.d[n+1, :] = res.dₙᵏ[n+1, k, :]
@@ -126,7 +141,7 @@ function newtonarclength(Fint::Function, ∂Fint::Function, dim::Int=1; stop=not
     res.num_steps = n + 1
     # Check stopping criterion
     if !isnothing(stop) && stop(res.d[n+1, :], res.λ[n+1])
-      println("Stopping criterion met at step $n, stopping")
+      @debug("Stopping criterion met at step $(n+1), stopping")
       break
     end
   end
