@@ -1,12 +1,10 @@
 using LinearAlgebra
 
-export integrate, gauss_quadrature, points, weights
+export integrate, gauss_quadrature, order, nodes, weights
 
 abstract type AbstractQuadrature end
 
-points(::AbstractQuadrature) = error("points not implemented for $(typeof(q))")
-weights(::AbstractQuadrature) = error("weights not implemented for $(typeof(q))")
-
+"""Quadrature rule with given points and weights."""
 struct Quadrature <: AbstractQuadrature
   points::Vector{Float64}
   weights::Vector{Float64}
@@ -18,10 +16,16 @@ struct Quadrature <: AbstractQuadrature
   end
 end
 
+"""Get the order of the quadrature rule."""
 order(q::Quadrature) = length(q.points)
+
+"""Get the reference coordinates of the quadrature points."""
 nodes(q::Quadrature) = q.points
+
+"""Get the quadrature weights."""
 weights(q::Quadrature) = q.weights
 
+"""Gauss quadrature rule of given order."""
 function gauss_quadrature(order::Int)
   if order == 1
     return Quadrature([0.0], [2.0])
@@ -45,6 +49,12 @@ function gauss_quadrature(order::Int)
   error("Gauss quadrature not implemented for n = $N")
 end
 
+"""Integrate a function using the given quadrature rule.
+
+The signature of the function is 
+  - `f(ξ)` if `mode = :noindex` (default), or
+  - `f(ξ, i::Int)` if `mode = :index`.
+"""
 function integrate(q::AbstractQuadrature, f::Function, mode::Symbol=:noindex)
   @assert mode ∈ (:noindex, :index) "Mode must be :noindex or :index"
   if mode == :index
@@ -54,6 +64,7 @@ function integrate(q::AbstractQuadrature, f::Function, mode::Symbol=:noindex)
   end
 end
 
+"""Integrate the function sampled at quadrature points using the given quadrature rule."""
 function integrate(q::AbstractQuadrature, f::AbstractVecOrMat)
   return sum(f .* weights(q))
 end

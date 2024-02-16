@@ -1,5 +1,4 @@
 using LinearAlgebra
-using Format
 
 export newtonraphson, modifiednewton
 

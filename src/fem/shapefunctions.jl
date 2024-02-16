@@ -1,47 +1,52 @@
 using LinearAlgebra
 
-export AbstractShapeFunctions, lagrange, Lagrange, N, ∇N, order, interpolate
+export AbstractShapeFunctions, lagrange, Lagrange, N, ∇N, order, nodes, weights, interpolate
 
 abstract type AbstractShapeFunctions end
 
-order(::T) where {T<:AbstractShapeFunctions} = error("order not implemented for $(T)")
-
+"""Lagrange interpolating polynomial shape functions."""
 struct Lagrange <: AbstractShapeFunctions
-  p::Int
   w::Vector{Float64}
   nodes::Vector{Float64}
 end
 
-function order(l::Lagrange)
-  return l.p
-end
+"""Get the order of the shape functions."""
+order(shape::Lagrange) = length(nodes(shape)) - 1
 
+"""Get the nodes of the shape functions."""
 nodes(shape::Lagrange) = shape.nodes
 
-function lagrange(order::Int, nodes)
-  if length(nodes) != order + 1
-    error("length(nodes) != order+1")
-  end
-  w = ones(order + 1)
-  for i in eachindex(nodes)
-    w[i] = prod(nodes[i] .- nodes[1:i-1]) * prod(nodes[i] .- nodes[i+1:end])
+"""Get the weights of the shape functions."""
+weights(shape::Lagrange) = shape.w
+
+"""Pre-compute the weights for the Lagrange interpolating polynomials at the given points."""
+function lagrange(points)
+  w = ones(length(points))
+  for i in eachindex(points)
+    w[i] = prod(points[i] .- points[1:i-1]) * prod(points[i] .- points[i+1:end])
   end
   w = 1 ./ w
-  return Lagrange(order, w, nodes)
+  return Lagrange(w, points)
 end
 
+"""Create Lagrange shape functions of given order and node type.
+
+Supported node types:
+  - `:equidistant`: Equidistant nodes in the interval `[-1, 1]`
+  - `:chebyshev2`: Chebyshev nodes of the second kind
+"""
 function lagrange(order::Int, t::Symbol)
   if t == :equidistant
     nodes = LinRange(-1, 1, order + 1)
-    wj = (-1) .^ (order:-1:0) .* [binomial(order, i) for i in order:-1:0]
-    return lagrange(order, nodes)
+    return lagrange(nodes)
   elseif t == :chebyshev2
     nodes = [cos(i * π / order) for i in order:-1:0]
-    return lagrange(order, nodes)
+    return lagrange(nodes)
   end
   error("Unknown node type $t")
 end
 
+"""Get the value of the shape functions at the given point."""
 function N(shape::Lagrange, ξ::Number)
   is_node_arr = ξ .≈ shape.nodes
   if any(is_node_arr)
@@ -55,10 +60,7 @@ function N(shape::Lagrange, ξ::Number)
   return ℓj
 end
 
-function interpolate(shape::Lagrange, f::Function, ξ::Number)
-  return dot(f.(shape.nodes), N(shape, ξ))
-end
-
+"""Get the gradient of the shape functions with respect to ξ at the given point."""
 function ∇N(shape::Lagrange, ξ::Number)
   dℓj = zeros(length(shape.nodes))
   is_node_arr = ξ .≈ shape.nodes
@@ -76,4 +78,17 @@ function ∇N(shape::Lagrange, ξ::Number)
     dℓj[i] = sum(1 / (ξ - shape.nodes[j]) for j in eachindex(shape.nodes) if j != i)
   end
   return N(shape, ξ) .* dℓj
+end
+
+"""Interpolate a function using the shape functions.
+
+The signature of the function is `f(ξ)`.
+"""
+function interpolate(shape::Lagrange, f::Function, ξ::Number)
+  return dot(f.(nodes(shape)), N(shape, ξ))
+end
+
+"""Interpolate the function values using the shape functions."""
+function interpolate(shape::Lagrange, f::AbstractVector, ξ::Number)
+  return dot(f, N(shape, ξ))
 end

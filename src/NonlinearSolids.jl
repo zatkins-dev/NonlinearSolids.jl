@@ -1,6 +1,7 @@
 module NonlinearSolids
 using LinearAlgebra
 using Revise
+using Format
 
 export AbstractSolverResult
 

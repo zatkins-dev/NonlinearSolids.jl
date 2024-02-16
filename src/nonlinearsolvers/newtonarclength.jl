@@ -2,6 +2,25 @@ using LinearAlgebra
 
 export newtonarclength
 
+"""Arc length functor"""
+struct ArcLength <: Function
+  denominator::Real
+  K̃diag::Diagonal
+  b::Real
+  function ArcLength(K̃, d̃; b=0.5)
+    K̃₀ = reshape(K̃, length(d̃), length(d̃))
+    K̃diag = Diagonal(diag(K̃₀))
+    den = d̃' * K̃diag * d̃
+    new(den, K̃diag, b)
+  end
+  function (f::ArcLength)(Δd, Δλ)
+    return √((1 - f.b) * (Δd' * f.K̃diag * Δd) / f.denominator + f.b * Δλ^2)
+  end
+end
+
+"""Arc length derivative functor"""
+∇(f::ArcLength) = (Δd, Δλ) -> [((1 - f.b) * Δd' * f.K̃diag / (f(Δd, Δλ) * f.denominator)) (f.b / f(Δd, Δλ) * Δλ)]
+
 function make_f_arc(K̃, d̃; b=0.5)
   K̃₀ = reshape(K̃, length(d̃), length(d̃))
   K̃diag = Diagonal(diag(K̃₀))
@@ -37,8 +56,7 @@ function newtonarclength(Fint::Function, ∂Fint::Function, dim::Int=1; stop=not
   Fext = ensurevec(Fext) # Make Fext a vector
   K̃₀ = ∂Fint(res.d[1, :]) # Initial tangent
   d̃₀ = ensurevec(K̃₀ \ Fext)  # Initial displacement increment
-  f_arc = make_f_arc(K̃₀, d̃₀; b=b) # Arc length function
-  df_arc = make_df_arc(K̃₀, d̃₀; b=b) # Arc length derivative
+  f_arc = ArcLength(K̃₀, d̃₀; b=b) # Arc length function
 
   # Iterate over steps
   for n in 1:maxsteps+1
@@ -80,7 +98,7 @@ function newtonarclength(Fint::Function, ∂Fint::Function, dim::Int=1; stop=not
         break
       end
       # Compute tangent
-      Kᵏ = [∂Fint(res.dₙᵏ[n+1, k, :]) -Fext; df_arc(Δd, Δλ)]
+      Kᵏ = [∂Fint(res.dₙᵏ[n+1, k, :]) -Fext; ∇(f_arc)(Δd, Δλ)]
       # Compute displacement increment
       δ = Kᵏ \ vec(r)
       if norm(δ[1:end-1]) < stol && abs(δ[end]) < stol

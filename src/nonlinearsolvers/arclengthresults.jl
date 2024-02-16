@@ -35,8 +35,8 @@ function trim!(result::ArcLengthResult)
 end
 
 mutable struct ArcLengthFEMResult <: AbstractSolverResult
-  d::Array{Float64,3}  # maxsteps×numnodes×dim
-  dₙᵏ::Array{Float64,4} # maxsteps×maxits×numnodes×dim
+  d::Array{Float64,3}  # maxsteps×numdof×dim
+  dₙᵏ::Array{Float64,4} # maxsteps×maxits×numdof×dim
   λ::Array{Float64,1}  # maxsteps×maxits
   λₙᵏ::Array{Float64,2} # maxsteps×maxits
   res_d::Array{Float64,2} # maxsteps×maxits

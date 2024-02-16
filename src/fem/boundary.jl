@@ -6,48 +6,39 @@ export Dirichlet, Neumann, TimeDependent, ElementBoundary, nodes, values, apply!
 abstract type AbstractBoundary end
 abstract type AbstractElementBoundary <: AbstractBoundary end
 
+"""Get the nodes from a boundary condition."""
 nodes(::T) where {T<:AbstractBoundary} = error("nodes not implemented for $(typeof(bc))")
+"""Get the values at nodes from a boundary condition."""
 values(::T) where {T<:AbstractBoundary} = error("values not implemented for $(typeof(bc))")
+"""Apply boundary condition to a vector."""
+apply!(bc::AbstractBoundary, _) = error("apply! not implemented for $(typeof(bc))")
+"""Check if boundary condition is Dirichlet."""
 isdirichlet(::T) where {T<:AbstractBoundary} = false
+"""Update boundary condition values, only affects `TimeDependent` boundaries."""
 function update!(::T, _) where {T<:AbstractBoundary} end
-apply!(bc::AbstractBoundary, K::AbstractMatrix) = apply!(bc, K, missing)
-apply!(bc::AbstractBoundary, F::AbstractVector) = apply!(bc, missing, F)
-apply!(bc::AbstractBoundary, F::Optional{AbstractVector}, K::Optional{AbstractMatrix}) = apply!(bc, K, F)
-apply!(bc::AbstractElementBoundary, K::ElementMatrix) = apply!(bc, K, missing)
-apply!(bc::AbstractElementBoundary, F::ElementVector) = apply!(bc, missing, F)
-apply!(bc::AbstractBoundary, _, _) = error("apply! not implemented for $(typeof(bc))")
 
+"""Dirichlet/Essential boundary condition, prescribes solution values at nodes."""
 struct Dirichlet <: AbstractBoundary
   nodes::AbstractVector
   values::AbstractVector
 end
-
 nodes(bc::Dirichlet) = bc.nodes
 values(bc::Dirichlet) = bc.values
 isdirichlet(bc::Dirichlet) = true
+"""Apply Dirichlet boundary condition to the solution vector."""
+apply!(bc::Dirichlet, D::AbstractVector) = D[bc.nodes] .= bc.values
 
-function apply!(bc::Dirichlet, K::Optional{AbstractMatrix}, F::Optional{AbstractVector})
-  @assert ismissing(K)
-  if !ismissing(F)
-    F[bc.nodes] .= bc.values
-  end
-end
-
+"""Neumann/Natural boundary condition, prescribes fluxes at nodes."""
 struct Neumann <: AbstractBoundary
   nodes::AbstractVector
   values::AbstractVector{Float64}
 end
-
 nodes(bc::Neumann) = bc.nodes
 values(bc::Neumann) = bc.values
+"""Apply Neumann boundary condition to the right hand side/external force vector."""
+apply!(bc::Neumann, F::AbstractVector) = F[bc.nodes] .+= bc.values
 
-function apply!(bc::Neumann, _::Optional{AbstractMatrix}, F::Optional{AbstractVector})
-  if !ismissing(F)
-    F[bc.nodes] .+= bc.values
-  end
-end
-
-
+"""Boundary condition for a single element."""
 struct ElementBoundary <: AbstractElementBoundary
   element::Ref{Element}
   bc_el::AbstractBoundary
@@ -61,32 +52,36 @@ struct ElementBoundary <: AbstractElementBoundary
     new(Ref(el), bc_local)
   end
 end
-
 isdirichlet(bc::ElementBoundary) = isdirichlet(bc.bc_el)
 nodes(bc::ElementBoundary) = nodes(bc.bc_el)
 values(bc::ElementBoundary) = values(bc.bc_el)
+"""Get the element acted upon by a boundary condition."""
 element(bc::ElementBoundary) = bc.element[]
+"""Apply boundary condition to an `ElementVector`."""
+apply!(bc::ElementBoundary, evec::ElementVector) = apply!(bc.bc_el, evec.vector)
 
-function apply!(bc::ElementBoundary, K::Optional{ElementMatrix}, F::Optional{ElementVector})
-  @assert ismissing(K) || element(bc) == element(K)
-  @assert ismissing(F) || element(bc) == element(F)
-  apply!(bc.bc_el, ismissing(K) ? missing : K.matrix, ismissing(F) ? missing : F.vector)
-end
-
+"""Time dependent boundary condition, updates values based on a function of time."""
 mutable struct TimeDependent{BC<:AbstractBoundary} <: AbstractBoundary
   bc::BC
   update_fn::Function
   pass_context::Bool
 end
+"""Create a time dependent boundary condition.
+  
+Signature of `update_fn`:
+  - `update_fn(bc::BC, t, args...; kwargs...)` if `pass_context` is true
+  - `update_fn(t, args...; kwargs...)` otherwise
+"""
 function TimeDependent(bc::BC, update_fn; pass_context::Bool=false) where {BC<:AbstractBoundary}
   TimeDependent{BC}(bc, update_fn, pass_context)
 end
 
 ElementBoundary(el::Element, bc::TimeDependent) = ElementBoundary(el, bc.bc)
 isdirichlet(bc::TimeDependent) = isdirichlet(bc.bc)
-apply!(bc::TimeDependent, K, F) = apply!(bc.bc, K, F)
+apply!(bc::TimeDependent, v) = apply!(bc.bc, v)
 nodes(bc::TimeDependent) = nodes(bc.bc)
 values(bc::TimeDependent) = values(bc.bc)
+"""Update the boundary condition values using user provided function."""
 function update!(bc::TimeDependent, t, args...; kwargs...)
   if bc.pass_context
     bc.bc.values .= bc.update_fn(bc.bc, t, args...; kwargs...)
