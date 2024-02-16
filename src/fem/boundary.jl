@@ -35,7 +35,7 @@ end
 
 struct Neumann <: AbstractBoundary
   nodes::AbstractVector
-  values::AbstractVector
+  values::AbstractVector{Float64}
 end
 
 nodes(bc::Neumann) = bc.nodes

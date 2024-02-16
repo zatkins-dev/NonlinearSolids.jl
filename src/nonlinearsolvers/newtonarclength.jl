@@ -3,20 +3,24 @@ using LinearAlgebra
 export newtonarclength
 
 function make_f_arc(K̃, d̃; b=0.5)
-  den = d̃ ⋅ diagm(K̃) ⋅ d̃
-  return (Δd, Δλ) -> √((1 - b) * (Δd ⋅ diagm(K̃) ⋅ Δd) / den + b * Δλ^2)
+  K̃₀ = reshape(K̃, length(d̃), length(d̃))
+  K̃diag = Diagonal(diag(K̃₀))
+  den = d̃' * K̃diag * d̃
+  return (Δd, Δλ) -> √((1 - b) * (Δd' * K̃diag * Δd) / den + b * Δλ^2)
 end
 
 function make_df_arc(K̃, d̃; b=0.5)
   f = make_f_arc(K̃, d̃; b=b)
-  den = d̃ ⋅ diagm(K̃) ⋅ d̃
+  K̃₀ = reshape(K̃, length(d̃), length(d̃))
+  K̃diag = Diagonal(diag(K̃₀))
+  den = d̃' * K̃diag * d̃
   function df_arc(Δd, Δλ)
-    return [((1 - b) * Δd ⋅ diagm(K̃) / (f(Δd, Δλ) * den)) (b / f(Δd, Δλ) * Δλ)]
+    return [((1 - b) * Δd' * K̃diag / (f(Δd, Δλ) * den)) (b / f(Δd, Δλ) * Δλ)]
   end
   return df_arc
 end
 
-function newtonarclength(Fint, ∂Fint, dim=1; stop=nothing, b=0.5, Δa=0.1, Fext=8, kwargs...)
+function newtonarclength(Fint::Function, ∂Fint::Function, dim::Int=1; stop=nothing, b=0.5, Δa=0.1, Fext=8, kwargs...)
   # Read arguments
   options = Dict(kwargs...)
   rtol = pop!(options, :rtol, 1e-16)
@@ -113,3 +117,5 @@ function newtonarclength(Fint, ∂Fint, dim=1; stop=nothing, b=0.5, Δa=0.1, Fex
   # Return solution
   return res
 end
+
+include("newtonarclength_fem.jl")

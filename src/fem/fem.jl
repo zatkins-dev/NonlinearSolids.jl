@@ -6,7 +6,6 @@ mutable struct FEMModel
   mesh::Mesh
   Q::AbstractQuadrature
   P::AbstractShapeFunctions
-  fields::Dict
   fields_el::Dict
   boundaries::Vector{AbstractBoundary}
   boundaries_el::Vector{Vector{AbstractElementBoundary}}
@@ -20,8 +19,12 @@ mutable struct FEMModel
     P = lagrange(p, :chebyshev2)
     boundaries_el = [AbstractElementBoundary[] for _ in elements(mesh)]
     constrained_nodes = falses(length(nodes(mesh)))
-    new(mesh, Q, P, Dict(), Dict(), AbstractBoundary[], boundaries_el, data, 0.0, 1, constrained_nodes, [])
+    new(mesh, Q, P, Dict(), AbstractBoundary[], boundaries_el, data, 0.0, 1, constrained_nodes, [])
   end
+end
+
+function Base.show(io::IO, fem::FEMModel)
+  print(io, "FEMModel\n  ", fem.mesh, "  Quadrature: Gauss, order $(order(fem.Q))\n  Shape functions: Lagrange, order $(order(fem.P))\n  Fields: ", keys(fem.fields_el), "\n  Boundaries: ", fem.boundaries, "\n  Postprocess: ", fem.postprocess)
 end
 
 numdof(fem::FEMModel) = length(nodes(fem.mesh))
@@ -32,16 +35,6 @@ function getfemfield_el!(fem::FEMModel, field::Symbol; ismat::Bool=false)
     fem.fields_el[field] = [ismat ? ElementMatrix(elem) : ElementVector(elem) for elem in elements(fem.mesh)]
   end
   return fem.fields_el[field]
-end
-
-function getfemfield!(fem::FEMModel, field::Symbol; dims=missing)
-  if ismissing(dims)
-    dims = (dim(mesh),)
-  end
-  if !haskey(fem.fields, field)
-    fem.fields[field] = zeros(Float64, (length(nodes(fem.mesh)), dims...))
-  end
-  return fem.fields[field]
 end
 
 function addboundary!(fem::FEMModel, bc::AbstractBoundary)

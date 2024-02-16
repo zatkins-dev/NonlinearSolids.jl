@@ -18,6 +18,7 @@ struct Quadrature <: AbstractQuadrature
   end
 end
 
+order(q::Quadrature) = length(q.points)
 nodes(q::Quadrature) = q.points
 weights(q::Quadrature) = q.weights
 

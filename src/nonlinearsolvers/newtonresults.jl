@@ -50,6 +50,10 @@ dim(result::NewtonFEMResult) = size(result.d, 3)
 function getoutputarray!(result::NewtonFEMResult, key::Symbol, dims=missing)
   if ismissing(dims)
     dims = (numsteps(result), numdof(result),)
+  elseif Base.haslength(dims)
+    dims = (numsteps(result), dims...)
+  else
+    dims = (numsteps(result), dims)
   end
   if !haskey(result.output_data, key)
     result.output_data[key] = zeros(Float64, dims)
@@ -67,5 +71,8 @@ function trim!(result::NewtonFEMResult, maxsteps=nothing)
     result.dₙᵏ = result.dₙᵏ[1:maxsteps, 1:s, :, :]
     result.res_d = result.res_d[1:maxsteps, 1:s]
     result.num_its = result.num_its[1:maxsteps]
+    for (key, val) in result.output_data
+      result.output_data[key] = val[1:maxsteps, :]
+    end
   end
 end

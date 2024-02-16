@@ -1,6 +1,6 @@
 using LinearAlgebra
 
-export Element, ElementVector, ElementMatrix, Mesh, nodes, element, restrict!, unrestrict!, assemble!, elements, coords, elementindex, dim
+export Element, ElementVector, ElementMatrix, Mesh, numnodes, nodes, element, restrict!, unrestrict!, assemble!, elements, coords, elementindex, dim
 
 struct Element
   nodes::Vector{Int}
@@ -81,6 +81,8 @@ struct Mesh
     new(dim, elements, element_idx, nodes, coords)
   end
 end
+
+Base.show(io::IO, mesh::Mesh) = println(io, "$(dim(mesh))D mesh with $(length(elements(mesh))) elements and $(length(nodes(mesh))) nodes.")
 
 function elementindex(mesh::Mesh, el::Element)
   get(mesh.elements_idx, el, 0)
