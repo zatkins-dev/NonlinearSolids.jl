@@ -1,7 +1,7 @@
 using LinearAlgebra
 
 import Base: values
-export Dirichlet, Neumann, TimeDependent, ElementBoundary, nodes, values, apply!, update!, isdirichlet
+export AbstractBoundary, Dirichlet, Neumann, TimeDependent, ElementBoundary, nodes, values, apply!, update!, isdirichlet
 
 abstract type AbstractBoundary end
 abstract type AbstractElementBoundary <: AbstractBoundary end
@@ -77,6 +77,7 @@ function TimeDependent(bc::BC, update_fn; pass_context::Bool=false) where {BC<:A
 end
 
 ElementBoundary(el::Element, bc::TimeDependent) = ElementBoundary(el, bc.bc)
+Base.show(io::IO, bc::TimeDependent) = print(io, "TimeDependent($(bc.bc), $(bc.update_fn))")
 isdirichlet(bc::TimeDependent) = isdirichlet(bc.bc)
 apply!(bc::TimeDependent, v) = apply!(bc.bc, v)
 nodes(bc::TimeDependent) = nodes(bc.bc)

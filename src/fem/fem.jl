@@ -12,7 +12,6 @@ mutable struct FEMModel
   P::AbstractShapeFunctions
   fields_el::Dict
   boundaries::Vector{AbstractBoundary}
-  boundaries_el::Vector{Vector{AbstractElementBoundary}}
   data::Dict
   time::Float64
   step::Int
@@ -21,9 +20,8 @@ mutable struct FEMModel
   function FEMModel(mesh::Mesh, q, p; data=Dict())
     Q = gauss_quadrature(q)
     P = lagrange(p, :chebyshev2)
-    boundaries_el = [AbstractElementBoundary[] for _ in elements(mesh)]
     constrained_nodes = falses(length(nodes(mesh)))
-    new(mesh, Q, P, Dict(), AbstractBoundary[], boundaries_el, data, 0.0, 1, constrained_nodes, [])
+    new(mesh, Q, P, Dict(), AbstractBoundary[], data, 0.0, 1, constrained_nodes, [])
   end
 end
 
@@ -49,9 +47,6 @@ end
 """Add a boundary condition to the model"""
 function addboundary!(fem::FEMModel, bc::AbstractBoundary)
   push!(fem.boundaries, bc)
-  for (el, boundaries) in zip(elements(fem.mesh), fem.boundaries_el)
-    push!(boundaries, ElementBoundary(el, bc))
-  end
   if isdirichlet(bc)
     fem.constrained_nodes[nodes(bc)] .= 1
   end

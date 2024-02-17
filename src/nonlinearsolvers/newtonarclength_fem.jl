@@ -163,5 +163,6 @@ Running Newton-Raphson Arc Length with options:
   # Trim arrays
   trim!(res)
   # Return solution
+  @info format("Converged with Newton-Raphson Arc Length in {} steps and an average of {:0.1f} Newton iterations per step", numsteps(res), sum(res.num_its) / numsteps(res))
   return res
 end

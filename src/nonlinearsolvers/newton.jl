@@ -85,6 +85,7 @@ Running $(type) Newton-Raphson with options:
   end
   # Return solution
   trim!(res)
+  @info format("Converged with {} Newton-Raphson in {} steps and an average of {:0.1g} Newton iterations per step", type, numsteps(res), sum(res.num_its) / numsteps(res))
   return res
 end
 
