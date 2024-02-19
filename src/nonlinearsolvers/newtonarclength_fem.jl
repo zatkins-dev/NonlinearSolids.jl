@@ -1,3 +1,4 @@
+"""Use Newton's method with arc length continuation to solve a nonlinear finite element problem"""
 function newtonarclength(fem::FEMModel, Fint::Function, ∂Fint∂d::Function, Fext::Function; stop=nothing, b=0.5, Δa=0.1, kwargs...)
   # Read arguments
   options = Dict(kwargs...)

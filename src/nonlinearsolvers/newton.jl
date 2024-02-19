@@ -91,10 +91,12 @@ end
 
 include("newton_fem.jl")
 
+"""Use the Newton-Raphson method with fixed timestepping to solve a nonlinear (optionally FEM) problem"""
 function newtonraphson(args...; kwargs...)
   return newton(args...; type=:standard, kwargs...)
 end
 
+"""Use the modified Newton method with fixed timestepping to solve a nonlinear (optionally FEM) problem """
 function modifiednewton(args...; kwargs...)
   return newton(args...; type=:modified, kwargs...)
 end

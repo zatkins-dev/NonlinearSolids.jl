@@ -1,4 +1,4 @@
-
+"""Use Newton's method (`:standard` or `:modified`) with fixed timestepping to solve a nonlinear finite element problem"""
 function newton(fem::FEMModel, residual, dresidual; type=:standard, t0=0.0, max_time=1.0, dt=0.1, kwargs...)
   if !(type in (:standard, :modified))
     error("type must be :standard or :modified")
@@ -33,7 +33,7 @@ Running $(type) Newton-Raphson with options:
     if n > 1
       res.dₙᵏ[n, 1, :] = res.d[n-1, :]
     end
-    applydirichletboundaries!(fem, res.dₙᵏ[n, 1, :])
+    applydirichletboundaries!(fem, @view res.dₙᵏ[n, 1, :])
     residual(fem, res.dₙᵏ[n, 1, :], R)
     dresidual(fem, res.dₙᵏ[n, 1, :], K)
     r = dofs(fem, R)
@@ -70,7 +70,7 @@ Running $(type) Newton-Raphson with options:
         return res
       end
       res.dₙᵏ[n, k+1, :] = res.dₙᵏ[n, k, :] + expand(fem, δd)
-      applydirichletboundaries!(fem, res.dₙᵏ[n, k+1, :])
+      applydirichletboundaries!(fem, @view res.dₙᵏ[n, k+1, :])
       residual(fem, res.dₙᵏ[n, k+1, :], R)
       res.res_d[n, k+1] = norm(dofs(fem, R))
       k += 1

@@ -21,24 +21,7 @@ end
 """Arc length derivative functor"""
 ∇(f::ArcLength) = (Δd, Δλ) -> [((1 - f.b) * Δd' * f.K̃diag / (f(Δd, Δλ) * f.denominator)) (f.b / f(Δd, Δλ) * Δλ)]
 
-function make_f_arc(K̃, d̃; b=0.5)
-  K̃₀ = reshape(K̃, length(d̃), length(d̃))
-  K̃diag = Diagonal(diag(K̃₀))
-  den = d̃' * K̃diag * d̃
-  return (Δd, Δλ) -> √((1 - b) * (Δd' * K̃diag * Δd) / den + b * Δλ^2)
-end
-
-function make_df_arc(K̃, d̃; b=0.5)
-  f = make_f_arc(K̃, d̃; b=b)
-  K̃₀ = reshape(K̃, length(d̃), length(d̃))
-  K̃diag = Diagonal(diag(K̃₀))
-  den = d̃' * K̃diag * d̃
-  function df_arc(Δd, Δλ)
-    return [((1 - b) * Δd' * K̃diag / (f(Δd, Δλ) * den)) (b / f(Δd, Δλ) * Δλ)]
-  end
-  return df_arc
-end
-
+"""Use Newton's method with arc length continuation to solve a nonlinear problem"""
 function newtonarclength(Fint::Function, ∂Fint::Function, dim::Int=1; stop=nothing, b=0.5, Δa=0.1, Fext=8, kwargs...)
   # Read arguments
   options = Dict(kwargs...)
