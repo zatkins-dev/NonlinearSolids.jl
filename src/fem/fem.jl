@@ -13,21 +13,18 @@ mutable struct FEMModel
   fields_el::Dict
   boundaries::Vector{AbstractBoundary}
   data::Dict
-  time::Float64
-  step::Int
   constrained_nodes::BitVector
-  postprocess::Vector{Function}
   function FEMModel(mesh::Mesh, q, p; data=Dict())
     Q = gauss_quadrature(q)
     P = lagrange(p, :chebyshev2)
     constrained_nodes = falses(length(nodes(mesh)))
-    new(mesh, Q, P, Dict(), AbstractBoundary[], data, 0.0, 1, constrained_nodes, [])
+    new(mesh, Q, P, Dict(), AbstractBoundary[], data, constrained_nodes)
   end
 end
 
 """Show the model"""
 function Base.show(io::IO, fem::FEMModel)
-  print(io, "FEMModel\n  ", fem.mesh, "  Quadrature: Gauss, order $(order(fem.Q))\n  Shape functions: Lagrange, order $(order(fem.P))\n  Fields: ", keys(fem.fields_el), "\n  Boundaries: ", fem.boundaries, "\n  Postprocess: ", fem.postprocess)
+  print(io, "FEMModel\n  ", fem.mesh, "  Quadrature: Gauss, order $(order(fem.Q))\n  Shape functions: Lagrange, order $(order(fem.P))\n  Fields: ", keys(fem.fields_el), "\n  Boundaries: ", fem.boundaries)
 end
 
 """Get the number of degrees of freedom in the model"""
@@ -52,45 +49,11 @@ function addboundary!(fem::FEMModel, bc::AbstractBoundary)
   end
 end
 
-"""
-Adds a postprocessing function to the model
-
-Signature: f(fem::FEMModel, u::AbstractVector, res::NewtonFEMResult)
-
-The function should modify the res argument in place.
-"""
-function addpostprocess!(fem::FEMModel, f::Function)
-  push!(fem.postprocess, f)
-end
-
-"""Apply all postprocessing functions"""
-function postprocess!(fem::FEMModel, u::AbstractVector, res::AbstractSolverResult)
-  for f in fem.postprocess
-    f(fem, u, res)
-  end
-end
-
-"""Get the current time"""
-function gettime(fem::FEMModel)
-  fem.time
-end
-
-"""Get the current step"""
-function getstep(fem::FEMModel)
-  fem.step
-end
-
-"""Advance the model by `dt`, increase the step count, and update BCs"""
-function step!(fem::FEMModel, dt)
-  fem.time += dt
-  fem.step += 1
-  updateboundaries!(fem)
-end
 
 """Update all time dependent boundary conditions"""
-function updateboundaries!(fem::FEMModel)
+function updateboundaries!(fem::FEMModel, t::Real)
   for bc in fem.boundaries
-    update!(bc, fem.time)
+    update!(bc, t)
   end
 end
 
