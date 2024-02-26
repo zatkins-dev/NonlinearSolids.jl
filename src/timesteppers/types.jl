@@ -41,8 +41,8 @@ function trim!(ts::T) where {T<:AbstractTimeStepper}
   if !hasfield(T, :output_data)
     return
   end
-  for (key, val) in result.output_data
-    result.output_data[key] = val[1:step(ts), :]
+  for (key, val) in ts.output_data
+    ts.output_data[key] = val[1:step(ts), :]
   end
 end
 
