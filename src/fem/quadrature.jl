@@ -68,3 +68,8 @@ end
 function integrate(q::AbstractQuadrature, f::AbstractVecOrMat)
   return sum(f .* weights(q))
 end
+
+"""Same as `integrate(q, f, mode)`, used to allow do-block."""
+function integrate(f::Function, q::AbstractQuadrature, mode::Symbol=:noindex)
+  return integrate(q, f, mode)
+end

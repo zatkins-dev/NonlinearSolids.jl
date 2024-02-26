@@ -8,6 +8,8 @@ Base.@kwdef mutable struct PseudoTimeStepper <: AbstractTimeStepper
   step::Int = 1
   """time step"""
   Δt::Float64 = 0.01
+  """initial time"""
+  t0::Float64 = 0.0
   """final time"""
   maxtime::Float64 = 1.0
   """Maximum number of steps"""
@@ -72,6 +74,7 @@ function solve!(ts::PseudoTimeStepper, U::AbstractVector=zeros(numdof(ts)))
   r = getoutputarray!(ts, :residual)
   num_its = getoutputarray!(ts, :num_its, 1)
   ts.U[step(ts), :] .= U
+  ts.t0 = ts.t
 
   num_its[step(ts)] = 0
   while ts.t < ts.maxtime && step(ts) < ts.maxsteps

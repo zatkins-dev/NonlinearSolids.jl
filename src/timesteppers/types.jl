@@ -1,4 +1,4 @@
-export AbstractTimeStepper, solver, model, numdof, maxsteps, time, getoutputarray!, trim!, addpostprocess!, postprocess!, step!
+export AbstractTimeStepper, solver, model, numdof, maxsteps, timerange, time, getoutputarray!, trim!, addpostprocess!, postprocess!, step!
 import Base: time
 abstract type AbstractTimeStepper end
 
@@ -6,6 +6,7 @@ solver(ts::AbstractTimeStepper) = ts.solver
 model(ts::AbstractTimeStepper) = model(solver(ts))
 numdof(ts::AbstractTimeStepper) = numdof(solver(ts))
 maxsteps(ts::AbstractTimeStepper) = ts.maxsteps
+timerange(ts::AbstractTimeStepper) = range(ts.t0, ts.maxtime, step=ts.Δt)
 """Get the current time from the timestepper"""
 time(ts::AbstractTimeStepper) = ts.t
 """Get the current step from the timestepper"""

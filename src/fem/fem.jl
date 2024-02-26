@@ -1,6 +1,6 @@
 using LinearAlgebra
 
-export FEMModel, getfemfield_el!, addboundary!, updateboundaries!, applydirichletboundaries!, applyneumannboundaries!, step!, dofs, expand, addpostprocess!, postprocess!, gettime, getstep
+export FEMModel, mesh, getfemfield_el!, addboundary!, updateboundaries!, applydirichletboundaries!, applyneumannboundaries!, step!, dofs, expand, addpostprocess!, postprocess!, gettime, getstep
 
 """Finite Element Model
 
@@ -32,6 +32,9 @@ numdof(fem::FEMModel) = length(nodes(fem.mesh))
 
 """Get the spatial dimension of the model"""
 dim(fem::FEMModel) = dim(fem.mesh)
+
+"""Get the mesh of the model"""
+mesh(fem::FEMModel) = fem.mesh
 
 """Get a list of `ElementVector` for the given field name"""
 function getfemfield_el!(fem::FEMModel, field::Symbol; ismat::Bool=false)

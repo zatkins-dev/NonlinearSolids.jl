@@ -13,6 +13,8 @@ Base.@kwdef mutable struct NewmarkTimeStepper <: AbstractTimeStepper
   step::Int = 1
   """Time step"""
   Δt::Float64 = 0.01
+  """Initial time"""
+  t0::Float64 = 0.0
   """Final time"""
   maxtime::Float64 = 1.0
   """Maximum number of steps"""
@@ -125,8 +127,7 @@ function solve!(ts::NewmarkTimeStepper, U0=zeros(numdof(ts)), U̇0=zeros(numdof(
   ts.U[step(ts), :] .= U0
   ts.U̇[step(ts), :] .= U̇0
   ts.U̇̇[step(ts), :] .= U̇̇0
-
-
+  ts.t0 = ts.t
   # TODO: Initialize a0 as M⋅a0 = Fext(t=0) - Fint(U0, t=0)
   while ts.t < ts.maxtime && step(ts) < ts.maxsteps
     update_predictors!(ts, step(ts))
