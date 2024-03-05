@@ -41,6 +41,7 @@ include("materials/linearelasticity.jl")
 include("materials/exponential.jl")
 
 # Gallery
+include("gallery/mass.jl")
 include("gallery/distributedforce.jl")
 include("gallery/residual.jl")
 include("gallery/jacobian.jl")

@@ -44,29 +44,11 @@ function (residual::Residual)(fem::FEMModel, U, U̇, R, ctx)
   R .-= Fext
 end
 
-function _applymass_el_fn(fem::FEMModel, a::ElementVector, A, ρ)
-  J = length(element(a)) / 2 # dx/dξ
-  return integrate(fem.Q) do ξ
-    N(fem.P, ξ) * N(fem.P, ξ)' * a.vector * A * ρ * J
-  end
-end
-
 """Dynamic residual function"""
 function (residual::Residual)(fem::FEMModel, U, U̇, U̇̇, R, ctx)
   # Call static residual function
   residual(fem, U, U̇, R, ctx)
 
   # Add inertia term
-  A = get(fem.data, :A, 1.0)
-  ρ = density(residual.material)
-
-  a_el = getfemfield_el!(fem, :a)
-  m_dot_a_el = getfemfield_el!(fem, :m_dot_a)
-  for el in eachindex(elements(fem.mesh))
-    restrict!(a_el[el], U̇̇)
-
-    m_dot_a_el[el].vector .= _applymass_el_fn(fem, a_el[el], A, ρ)
-
-    unrestrict!(m_dot_a_el[el], R)
-  end
+  applymass!(residual.material, fem, U̇̇, R)
 end

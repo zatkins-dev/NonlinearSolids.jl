@@ -28,6 +28,9 @@ Base.@kwdef mutable struct NewtonSolver <: AbstractNonlinearSolver
   """Optionally log reason for convergence"""
   monitor_converged_reason::Bool = false
 
+  """Treat reaching maximum iterations as converged"""
+  allow_maxits::Bool = false
+
   """Solution vector"""
   U::Vector{Float64}
   """Step vector"""
@@ -117,7 +120,7 @@ set_jacobian_fn!(solver::NewtonSolver, jacobian_fn!::Function) = solver.jacobian
 Check if the Newton solver has converged. If `allow_maxits` is `true`, 
 then the solver is considered converged if it has reached the maximum number of iterations.
 """
-is_converged(solver::NewtonSolver; allow_maxits=false) = is_converged(solver.converged_reason, allow_maxits=allow_maxits)
+is_converged(solver::NewtonSolver; allow_maxits=solver.allow_maxits) = is_converged(solver.converged_reason, allow_maxits=allow_maxits)
 
 numdof(solver::NewtonSolver) = numdof(solver.fem)
 
@@ -186,37 +189,3 @@ function solve!(solver::NewtonSolver, U0::AbstractVector=zeros(numdof(solver.fem
   @logmsg ll_resid "  final residual norms:" relative = norm_r / norm_r0 absolute = norm_r
   return
 end
-
-
-# """Use Newton's method (`:standard` or `:modified`) with fixed timestepping to solve a nonlinear finite element problem"""
-# function newton(fem::FEMModel, residual, dresidual; type=:standard, t0=0.0, max_time=1.0, dt=0.1, kwargs...)
-#   if !(type in (:standard, :modified))
-#     error("type must be :standard or :modified")
-#   end
-
-
-#   # Initialize result
-#   num_steps = Int((max_time - t0) / dt) + 1
-#   fem.time = t0
-#   res = NewtonResult(fem; numsteps=num_steps, maxits=maxits)
-#   for n in 1:num_steps
-#     @debug format("time step n = {} (t = {:0.2g})", n, gettime(fem))
-#     if n > 1
-#       res.dₙᵏ[n, 1, :] = res.d[n-1, :]
-#     end
-#     applydirichletboundaries!(fem, @view res.dₙᵏ[n, 1, :])
-
-
-#     res.num_its[n] = k
-#     res.d[n, :] = res.dₙᵏ[n, k, :]
-
-#     # Apply any post processing functions
-#     postprocess!(fem, res.d[n, :], res)
-#     if n < num_steps
-#       step!(fem, dt)
-#     end
-#   end
-#   trim!(res)
-#   @info format("Converged with {} Newton-Raphson in {} steps and an average of {:0.1f} Newton iterations per step", type, numsteps(res), sum(res.num_its) / numsteps(res))
-#   return res
-# end

@@ -18,7 +18,7 @@ Base.@kwdef mutable struct NewmarkTimeStepper <: AbstractTimeStepper
   """Final time"""
   maxtime::Float64 = 1.0
   """Maximum number of steps"""
-  maxsteps::Int = Int((maxtime - t) / Δt + 1)
+  maxsteps::Int = round(Int, (maxtime - t) / Δt + 1)
   """Displacement predictor"""
   Ũ::Vector{Float64} = zeros(0)
   """Velocity predictor"""
@@ -36,11 +36,13 @@ Base.@kwdef mutable struct NewmarkTimeStepper <: AbstractTimeStepper
   postprocess::Vector{Function} = []
   """output data"""
   output_data::Dict{Symbol,AbstractArray} = Dict()
+  """material model"""
+  material::AbstractMaterial
 end
 
-function NewmarkTimeStepper(solver; kwargs...)
+function NewmarkTimeStepper(solver, material; kwargs...)
   ndof = numdof(solver.fem)
-  ts = NewmarkTimeStepper(; solver=solver, kwargs...)
+  ts = NewmarkTimeStepper(; solver=solver, material=material, kwargs...)
   ts.Ũ = zeros(Float64, ndof)
   ts.Ũ̇ = zeros(Float64, ndof)
   ts.U = zeros(Float64, ts.maxsteps, ndof)
@@ -128,7 +130,14 @@ function solve!(ts::NewmarkTimeStepper, U0=zeros(numdof(ts)), U̇0=zeros(numdof(
   ts.U̇[step(ts), :] .= U̇0
   ts.U̇̇[step(ts), :] .= U̇̇0
   ts.t0 = ts.t
-  # TODO: Initialize a0 as M⋅a0 = Fext(t=0) - Fint(U0, t=0)
+  # Initialize a0 as M⋅a0 = Fext(t=0) - Fint(U0, t=0)
+  # Compute r[step(ts), :] = Fext(t=0) - Fint(U0, t=0)
+  ts.solver.residual_fn!(model(ts), ts.U̇̇[step(ts), :], r[step(ts), :], ts)
+  # Assemble mass matrix
+  M = zeros(numdof(ts), numdof(ts))
+  assemblemass!(ts.material, model(ts), M)
+  # Solve for a0
+  ts.U̇̇[step(ts), :] .= M \ r[step(ts), :]
   while ts.t < ts.maxtime && step(ts) < ts.maxsteps
     update_predictors!(ts, step(ts))
     step!(ts, ts.Δt)

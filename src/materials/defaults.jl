@@ -5,7 +5,7 @@ function _internalforce_el(fem::FEMModel, u::ElementVector, material::AbstractMa
   dxdξ = length(element(u)) / 2
   qfunc = (ξ) -> begin
     B = ∇N(fem.P, ξ)' * (1 / dxdξ) # B = dN/dx = ∇N * J^-1
-    ϵ = B ⋅ u.vector # du/dx, strain
+    ϵ = B * u.vector # du/dx, strain
     return B' * σ(material, ϵ) * A * dxdξ
   end
   integrate(fem.Q, qfunc)
@@ -18,7 +18,7 @@ function _dinternalforce_el(fem::FEMModel, u::ElementVector, material::AbstractM
   dxdξ = length(element(u)) / 2 # dx/dξ
   qfunc = (ξ) -> begin
     B = ∇N(fem.P, ξ)' * (1 / dxdξ) # B = dN/dx = ∇N * J^-1
-    ϵ = B ⋅ u.vector # du/dx, strain
+    ϵ = B * u.vector # du/dx, strain
     dϵdu = B
     return B' * ∂σ∂ϵ(material, ϵ) * dϵdu * A * dxdξ
   end

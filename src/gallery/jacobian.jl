@@ -37,12 +37,6 @@ function (jacobian::Jacobian)(fem::FEMModel, U, U̇, K, ctx)
   end
 end
 
-function _mass_el_fn(fem::FEMModel, el::Element, A, ρ)
-  J = length(el) / 2 # dx/dξ
-  return integrate(fem.Q) do ξ
-    N(fem.P, ξ) * N(fem.P, ξ)' * A * ρ * J
-  end
-end
 
 """Dynamic Jacobian function"""
 function (jacobian::Jacobian)(fem::FEMModel, U, U̇, U̇̇, K, ctx::AbstractTimeStepper)
@@ -53,12 +47,5 @@ function (jacobian::Jacobian)(fem::FEMModel, U, U̇, U̇̇, K, ctx::AbstractTime
   K .*= ∂U̇̇∂U(ctx)
 
   # Add inertia term
-  A = get(fem.data, :A, 1.0)
-  ρ = density(jacobian.material)
-
-  m = getfemfield_el!(fem, :m; ismat=true)
-  for m_el in m
-    m_el.matrix .= _mass_el_fn(fem, element(m_el), A, ρ)
-    assemble!(m_el, K)
-  end
+  assemblemass!(jacobian.material, fem, K)
 end

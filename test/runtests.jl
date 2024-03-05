@@ -55,7 +55,7 @@ using Test
     points = range(-1, 1; length=10001)
     fns_order_1(ξ) = 0.5 * [1 - ξ, 1 + ξ]
     dfns_order_1(ξ) = 0.5 * [-1, 1]
-    fns_order_2(ξ) = [-0.5 * ξ * (1 - ξ), (1 - ξ) * (1 + ξ), 0.5 * ξ * (1 + ξ)]
+    fns_order_2(ξ) = [-0.5 * ξ * (1 - ξ), 1 - ξ^2, 0.5 * ξ * (1 + ξ)]
     dfns_order_2(ξ) = [ξ - 0.5, -2ξ, ξ + 0.5]
 
     @testset "Lagrange - order $(p)" for p in 1:3
