@@ -39,6 +39,7 @@ include("nonlinearsolvers/arclengthresults.jl")
 include("materials/defaults.jl")
 include("materials/linearelasticity.jl")
 include("materials/exponential.jl")
+include("materials/linearelastoplasticity.jl")
 
 # Gallery
 include("gallery/mass.jl")

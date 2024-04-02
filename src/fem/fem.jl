@@ -1,6 +1,6 @@
 using LinearAlgebra
 
-export FEMModel, mesh, getfemfield_el!, addboundary!, updateboundaries!, applydirichletboundaries!, applyneumannboundaries!, step!, dofs, expand, addpostprocess!, postprocess!, gettime, getstep
+export FEMModel, mesh, getfemfield_el!, getqdata_el!, addboundary!, updateboundaries!, applydirichletboundaries!, applyneumannboundaries!, step!, dofs, expand, addpostprocess!, postprocess!, gettime, getstep
 
 """Finite Element Model
 
@@ -13,12 +13,13 @@ mutable struct FEMModel
   fields_el::Dict
   boundaries::Vector{AbstractBoundary}
   data::Dict
+  qdata::Dict
   constrained_nodes::BitVector
   function FEMModel(mesh::Mesh, q, p; data=Dict())
     Q = gauss_quadrature(q)
     P = lagrange(p, :chebyshev2)
     constrained_nodes = falses(length(nodes(mesh)))
-    new(mesh, Q, P, Dict(), AbstractBoundary[], data, constrained_nodes)
+    new(mesh, Q, P, Dict(), AbstractBoundary[], data, Dict(), constrained_nodes)
   end
 end
 
@@ -36,12 +37,22 @@ dim(fem::FEMModel) = dim(fem.mesh)
 """Get the mesh of the model"""
 mesh(fem::FEMModel) = fem.mesh
 
+"""Check if a field exists in the model"""
+hasfield(fem::FEMModel, field::Symbol) = haskey(fem.fields_el, field)
+
 """Get a list of `ElementVector` for the given field name"""
 function getfemfield_el!(fem::FEMModel, field::Symbol; ismat::Bool=false)
   if !haskey(fem.fields_el, field)
     fem.fields_el[field] = [ismat ? ElementMatrix(elem) : ElementVector(elem) for elem in elements(fem.mesh)]
   end
   return fem.fields_el[field]
+end
+
+function getqdata_el!(fem::FEMModel, field::Symbol, len::Int=1)
+  if !haskey(fem.qdata, field)
+    fem.qdata[field] = [zeros(Float64, length(nodes(fem.Q)), len) for _ in elements(fem.mesh)]
+  end
+  return fem.qdata[field]
 end
 
 """Add a boundary condition to the model"""

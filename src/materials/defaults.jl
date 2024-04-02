@@ -37,10 +37,14 @@ function compute_internalforce(material::AbstractMaterial, fem::FEMModel, U, Fin
   f_int_el = getfemfield_el!(fem, :f_int)
   for el in eachindex(elements(fem.mesh))
     restrict!(d_el[el], U)
+    if has_state(material)
+      update_state_el!(material, fem, d_el[el], ctx)
+    end
     f_int_el[el].vector .= get_internalforce_el_fn(material)(fem, d_el[el], material, ctx)
     unrestrict!(f_int_el[el], Fint)
   end
 end
+
 """Default implementation of the global internal force function, rate-dependent"""
 function compute_internalforce(material::AbstractMaterial, fem::FEMModel, U, U̇, Fint, ctx; mode=:add)
   if !(mode in (:add, :set))

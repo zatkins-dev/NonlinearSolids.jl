@@ -13,7 +13,7 @@ function (residual::Residual)(fem::FEMModel, U, R, ctx)
   applydirichletboundaries!(fem, U)
   R .= 0
   Fext = zeros(length(U))
-  if !is_velocitydependent(typeof(residual.material))
+  if !is_velocitydependent(residual.material)
     compute_internalforce(residual.material, fem, U, R, ctx; mode=:add)
   end
   for f in residual.externalforces
@@ -31,7 +31,7 @@ function (residual::Residual)(fem::FEMModel, U, U̇, R, ctx)
   residual(fem, U, R, ctx)
 
   # Call velocity-independent residual function
-  if is_velocitydependent(typeof(residual.material))
+  if is_velocitydependent(residual.material)
     compute_internalforce(residual.material, fem, U, U̇, R, ctx; mode=:add)
   end
 

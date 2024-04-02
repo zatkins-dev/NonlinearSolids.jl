@@ -150,6 +150,7 @@ function solve!(ts::NewmarkTimeStepper, U0=zeros(numdof(ts)), U̇0=zeros(numdof(
     r[step(ts), :] .= residual(ts.solver)
     num_its[step(ts)] = iterations(ts.solver)
     update_state!(ts, ts.U̇̇[step(ts), :])
+    poststep!(ts, ts.U[step(ts), :])
     postprocess!(ts, ts.U[step(ts), :])
   end
 end

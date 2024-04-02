@@ -8,3 +8,6 @@ density(material::AbstractMaterial) = material.ρ
 get_internalforce_el_fn(material::AbstractMaterial) = error("Not implemented")
 get_dinternalforce_el_fn(material::AbstractMaterial) = error("Not implemented")
 is_velocitydependent(material::AbstractMaterial) = false
+has_state(material::AbstractMaterial) = false
+update_state_el!(material::AbstractMaterial, fem, u, ctx) = nothing
+save_state!(material::AbstractMaterial, fem, U, ctx) = nothing

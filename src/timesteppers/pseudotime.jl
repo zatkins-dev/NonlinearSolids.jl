@@ -87,6 +87,7 @@ function solve!(ts::PseudoTimeStepper, U::AbstractVector=zeros(numdof(ts)))
     ts.U[step(ts), :] .= solution(solver(ts))
     r[step(ts), :] .= residual(solver(ts))
     num_its[step(ts)] = iterations(solver(ts))
+    poststep!(ts, ts.U[step(ts), :])
     postprocess!(ts, ts.U[step(ts), :])
   end
 end

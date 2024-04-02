@@ -138,10 +138,9 @@ function solve!(solver::NewtonSolver, U0::AbstractVector=zeros(numdof(solver.fem
     solver.jacobian_fn!(solver.fem, solver.U[:], solver.K[:, :], solver.ctx)
   end
   r = dofs(solver.fem, solver.R)
-  norm_r0 = norm(r)
+  norm_r = norm(r)
   @logmsg ll_resid "  Initial residual norm: $(norm(r))"
   norm_r0 = norm(r) > eps() ? norm(r) : 1
-  norm_r = norm_r0
   solver.iterations = 0 # Initial iteration count
   while solver.iterations < solver.maxits
     if norm_r / norm_r0 < solver.rtol
@@ -154,13 +153,9 @@ function solve!(solver::NewtonSolver, U0::AbstractVector=zeros(numdof(solver.fem
       @logmsg ll_conv solver.converged_reason iterations = solver.iterations
       break
     end
-    if solver.type == :standard
-      @views begin
-        solver.jacobian_fn!(solver.fem, solver.U[:], solver.K[:, :], solver.ctx)
-      end
-    end
+
     try
-      solver.δU .= expand(solver.fem, -dofs(solver.fem, solver.K) \ dofs(solver.fem, solver.R))
+      solver.δU .= expand(solver.fem, dofs(solver.fem, solver.K) \ dofs(solver.fem, -solver.R))
     catch e
       if e isa SingularException
         solver.converged_reason = REASON_DIVERGED_LINEAR_SOLVE
@@ -178,9 +173,13 @@ function solve!(solver::NewtonSolver, U0::AbstractVector=zeros(numdof(solver.fem
     solver.U .+= solver.δU
     @views begin
       solver.residual_fn!(solver.fem, solver.U[:], solver.R[:], solver.ctx)
+      if solver.type == :standard
+        solver.jacobian_fn!(solver.fem, solver.U[:], solver.K[:, :], solver.ctx)
+      end
     end
     norm_r = norm(dofs(solver.fem, solver.R))
     solver.iterations += 1
+    @logmsg ll_resid "  Iteration $(solver.iterations): residual norm: $(norm_r)"
   end
   if solver.iterations >= solver.maxits
     solver.converged_reason = REASON_DIVERGED_MAXITS

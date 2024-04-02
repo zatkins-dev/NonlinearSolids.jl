@@ -40,3 +40,13 @@ end
 import .ConvergedReasons: is_converged
 using .ConvergedReasons: AbstractConvergedReason, REASON_CONVERGED_RELATIVE, REASON_CONVERGED_ABSOLUTE, REASON_DIVERGED_LINEAR_SOLVE, REASON_DIVERGED_STEP, REASON_DIVERGED_MAXITS, REASON_NOT_YET_CONVERGED
 export is_converged, REASON_CONVERGED_RELATIVE, REASON_CONVERGED_ABSOLUTE, REASON_DIVERGED_LINEAR_SOLVE, REASON_DIVERGED_STEP, REASON_DIVERGED_MAXITS, REASON_NOT_YET_CONVERGED
+
+function material(solver::AbstractNonlinearSolver)
+  if hasproperty(solver, :material)
+    return solver.material
+  elseif hasproperty(model(solver), :material)
+    return model(solver).material
+  elseif hasproperty(solver, :residual_fn!) && hasproperty(solver.residual_fn!, :material)
+    return solver.residual_fn!.material
+  end
+end

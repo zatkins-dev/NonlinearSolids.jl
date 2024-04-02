@@ -1,10 +1,11 @@
-export AbstractTimeStepper, solver, model, numdof, maxsteps, timerange, time, getoutputarray!, trim!, addpostprocess!, postprocess!, step!
+export AbstractTimeStepper, material, solver, model, numdof, maxsteps, timerange, time, getoutputarray!, trim!, addpostprocess!, postprocess!, step!, poststep!
 import Base: time
 abstract type AbstractTimeStepper end
 
 solver(ts::AbstractTimeStepper) = ts.solver
 model(ts::AbstractTimeStepper) = model(solver(ts))
 numdof(ts::AbstractTimeStepper) = numdof(solver(ts))
+material(ts::AbstractTimeStepper) = material(solver(ts))
 maxsteps(ts::AbstractTimeStepper) = ts.maxsteps
 timerange(ts::AbstractTimeStepper) = range(ts.t0, ts.maxtime, step=ts.Δt)
 """Get the current time from the timestepper"""
@@ -28,9 +29,9 @@ function getoutputarray!(ts::AbstractTimeStepper, key::Symbol, dims=missing)
 end
 
 function Base.getproperty(ts::T, key::Symbol) where {T<:AbstractTimeStepper}
-  if hasfield(T, key)
+  if Base.hasfield(T, key)
     return getfield(ts, key)
-  elseif hasfield(T, :output_data) && haskey(ts.output_data, key)
+  elseif Base.hasfield(T, :output_data) && haskey(ts.output_data, key)
     return getoutputarray!(ts, key)
   else
     return getfield(ts, key)
@@ -38,7 +39,7 @@ function Base.getproperty(ts::T, key::Symbol) where {T<:AbstractTimeStepper}
 end
 
 function trim!(ts::T) where {T<:AbstractTimeStepper}
-  if !hasfield(T, :output_data)
+  if !Base.hasfield(T, :output_data)
     return
   end
   for (key, val) in ts.output_data
@@ -68,4 +69,10 @@ function step!(ts::AbstractTimeStepper, Δt::Real)
   ts.t += Δt
   ts.step += 1
   updateboundaries!(model(ts), time(ts))
+end
+
+function poststep!(ts::AbstractTimeStepper, u::AbstractVector)
+  if !isnothing(material(ts)) && has_state(material(ts))
+    save_state!(material(ts), model(ts), u, ts)
+  end
 end
