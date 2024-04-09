@@ -19,6 +19,7 @@ Base.@kwdef struct LinearElastoPlasticity1D <: AbstractMaterial
   ρ::Float64 = 1.0
 end
 
+"""Compute the element internal force for linear elastoplasticity"""
 function _internalforce_plasticity_el(fem::FEMModel, u::ElementVector, material::AbstractMaterial, ctx)
   A = get(fem.data, :A, 3e-4)
   σ = getqdata_el!(fem, :σ)
@@ -32,7 +33,7 @@ function _internalforce_plasticity_el(fem::FEMModel, u::ElementVector, material:
   integrate(fem.Q, qfunc, :index)
 end
 
-"""Default implementation of the element tangent stiffness matrix function"""
+"""Compute the element tangent stiffness matrix for linear elastoplasticity"""
 function _dinternalforce_plasticity_el(fem::FEMModel, u::ElementVector, material::AbstractMaterial, ctx)
   A = get(fem.data, :A, 3e-4)
   ∂σ∂ϵ = getqdata_el!(fem, :∂σ∂ϵ)
@@ -52,6 +53,10 @@ get_internalforce_el_fn(::LinearElastoPlasticity1D) = _internalforce_plasticity_
 get_dinternalforce_el_fn(::LinearElastoPlasticity1D) = _dinternalforce_plasticity_el
 has_state(::LinearElastoPlasticity1D) = true
 
+"""
+Update state variables at quadrature points within an element for the current time step using 
+  the current/prior solution at nodes and prior state variables at quadrature points.
+"""
 function update_state_el!(material::LinearElastoPlasticity1D, fem::FEMModel, u::ElementVector, ctx)
   u_n = getfemfield_el!(fem, :u_n)
   el = elementindex(mesh(fem), element(u))
@@ -84,11 +89,10 @@ function update_state_el!(material::LinearElastoPlasticity1D, fem::FEMModel, u::
       γ[el][i] = γ_n[el][i]
       ∂σ∂ϵ[el][i] = material.E
     end
-    # @info "Element: $el f_tr: $f_tr σ_tr: $σ_tr σ: $(σ[el]) α: $(α[el]) κ: $(κ[el]) γ: $(γ[el])"
   end
-  # @info "Element: $el σ: $(σ[el]) α: $(α[el]) κ: $(κ[el]) γ: $(γ[el])"
 end
 
+"""Save state variables from the current time step"""
 function save_state!(::LinearElastoPlasticity1D, fem::FEMModel, U, ctx)
   for el in eachindex(elements(fem.mesh))
     restrict!(getfemfield_el!(fem, :u_n)[el], U)
@@ -98,6 +102,7 @@ function save_state!(::LinearElastoPlasticity1D, fem::FEMModel, U, ctx)
   end
 end
 
+"""Initialize state variables"""
 function initialize_state!(material::LinearElastoPlasticity1D, fem::FEMModel)
   getqdata_el!(fem, :α)
   getqdata_el!(fem, :κ)
@@ -109,5 +114,4 @@ function initialize_state!(material::LinearElastoPlasticity1D, fem::FEMModel)
     α_n[el][:] .= material.α₀
     κ_n[el][:] .= material.κ₀
   end
-  @info κ_n
 end
